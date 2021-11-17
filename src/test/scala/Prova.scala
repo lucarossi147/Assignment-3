@@ -2,12 +2,21 @@ import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorSystem, Behavior}
 
 
+type Rank = Map[String, Int]
+
+def sumRanking(rnk1: Rank, rnk2: Rank): Rank = {
+  def merge[A, B](a: Map[A, B], b: Map[A, B])(mergef: (B, Option[B]) => B): Map[A, B] = {
+    val (big, small) = if (a.size > b.size) (a, b) else (b, a)
+    small.foldLeft(big) { case (z, (k, v)) => z + (k -> mergef(v, z.get(k))) }
+  }
+  merge(rnk1, rnk2)((v1, v2) => v2.map(_ + v1).getOrElse(v1))
+}
 
 object RankDiProva {
-  var i: Int  = 0
+  var i: Rank = Map.empty
   sealed trait RankCommand
   case class CreateRank() extends RankCommand
-  case class UpdateRank(i: Int) extends RankCommand
+  case class UpdateRank(rank: Rank) extends RankCommand
 
   def apply(): Behavior[RankCommand] = {
     Behaviors.receive{ (context, message) => message match {
@@ -15,8 +24,8 @@ object RankDiProva {
         context.log.info("rank di prova crea classifica")
         Behaviors.same
 
-      case UpdateRank(toSum: Int) =>
-        i+=toSum
+      case UpdateRank(rank: Rank) =>
+        i = sumRanking(i, rank)
         context.log.info(s"rank: $i")
         Behaviors.same
     }
