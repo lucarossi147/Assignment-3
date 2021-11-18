@@ -40,7 +40,7 @@ public class ViewScala extends JFrame implements ActionListener {
         JLabel directoryLabel = new JLabel("Set directory");
         directoryText = new JTextField("/home/davide/Downloads/test",20);
         JLabel ignoreLabel = new JLabel("Set ignore file");
-        ignoreText = new JTextField("/home/luca/Desktop/ignored.txt",20);
+        ignoreText = new JTextField("/home/davide/Downloads/test/ignored.txt",20);
         JLabel numOfWordsCounted = new JLabel("Number of words: ");
         wordsCounterText = new JTextField("", 20);
         wordsCounterText.setEditable(false);
@@ -62,6 +62,7 @@ public class ViewScala extends JFrame implements ActionListener {
         start = new JButton("Start");
         start.setActionCommand("start");
         start.addActionListener(this);
+        start.setEnabled(false);
         stop = new JButton("Stop");
         stop.setActionCommand("stop");
         stop.addActionListener(this);

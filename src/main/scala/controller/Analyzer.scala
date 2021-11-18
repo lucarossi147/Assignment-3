@@ -2,8 +2,7 @@ package controller
 
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior}
-import controller.RankDiProva.RankCommand
-import model.ScalaPage
+import model.{RankCommand, ScalaPage, UpdateRank}
 import org.apache.pdfbox.pdmodel.PDDocument
 import org.apache.pdfbox.text.PDFTextStripper
 
@@ -24,7 +23,7 @@ object Analyzer {
           val p: ScalaPage = read(path).getOrElse(ScalaPage(""))
           val words = p.getRelevantWords(unwantedWords)
           val rank = analyze(words)
-          replyTo ! RankDiProva.UpdateRank(rank)
+          replyTo ! UpdateRank(rank, words.size)
           Behaviors.stopped
       }
     }
