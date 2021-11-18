@@ -24,8 +24,8 @@ public class RankMonitorImpl implements RankMonitor {
         totalWords = 0;
     }
 
-    public void setView(View view){
-        this.view = view;
+    public void setView(View viewScala){
+        this.view = viewScala;
      }
 
     public void update(HashMap<String, Integer> pageRank) {
@@ -77,7 +77,7 @@ public class RankMonitorImpl implements RankMonitor {
     }
 
     private void notifyView(){
-        if (this.view!=null){
+        if (this.view !=null){
             view.rankUpdated();
         }
     }
