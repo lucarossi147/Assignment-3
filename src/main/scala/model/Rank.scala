@@ -2,16 +2,24 @@ package model
 
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior}
-import controller.{Analyzer, MainCommand}
+import controller.{Analyzer, MainCommand, UpdateView}
 
 import java.io.FileNotFoundException
 import java.nio.file.{Files, Paths}
 import scala.collection.immutable.ListMap
 import scala.util.Random
 
+sealed trait RankCommand
+
+case class CreateRank(path: String, ignoreWordsPath: String) extends RankCommand
+
+case class UpdateRank(rank: Map[String, Int], wordsCount: Int) extends RankCommand
+
+case object StopRank extends RankCommand
+
 object Rank {
 
-  var i: Map[String, Int] = Map.empty
+  var rank: Map[String, Int] = Map.empty
   var wordsCounted = 0
 
   def apply(replyTo: ActorRef[MainCommand]): Behavior[RankCommand] = {
@@ -19,6 +27,7 @@ object Rank {
       message match {
         case CreateRank(path, ignoreWordsPath) =>
           context.log.info("rank di prova crea classifica")
+          val unwantedWords = getFromIgnoreText(ignoreWordsPath)
           Files.walk(Paths.get(path))
             .filter(_.isAbsolute)
             .filter(_.getFileName.toString.endsWith(".pdf"))
@@ -26,21 +35,20 @@ object Rank {
               val a = context.spawn(
                 Analyzer(path.toString,
                   context.self,
-                  getFromIgnoreText(ignoreWordsPath)
-                    .getOrElse(Set())), "analyzer" + Random.nextInt().toString)
+                  unwantedWords,
+                ), "analyzer" + Random.nextInt().toString)
               a ! Analyzer.Analyze()
             })
           Behaviors.same
 
-        case UpdateRank(rank: Map[String, Int], wordsCount: Int) =>
+        case UpdateRank(partialRank: Map[String, Int], wordsCount: Int) =>
           wordsCounted += wordsCount
-          i = sumRanking(i, rank)
-
+          rank = sumRanking(rank, partialRank)
           val sortedMap = ListMap
             .from(rank.toSeq.sortWith(_._2 > _._2)) //Ordering
             .take(10) //Take the first ten
-
-          context.log.info("rank: " + i.take(10))
+          replyTo ! UpdateView(sortedMap, wordsCounted)
+          context.log.info("rank: " + rank.take(10))
           Behaviors.same
 
         case StopRank => Behaviors.stopped
@@ -48,15 +56,15 @@ object Rank {
     }
   }
 
-  private def getFromIgnoreText(fileName: String): Option[Set[String]] = {
+  private def getFromIgnoreText(fileName: String): Set[String] = {
     val words = """([A-Za-z])+""".r
     try {
       val src = io.Source.fromFile(fileName)
       val res = src.getLines.flatMap(words.findAllIn).toSet
       src.close()
-      Some(res)
+      res
     } catch {
-      case _: FileNotFoundException => println("Ignore File not found"); None
+      case _: FileNotFoundException => println("Ignore File not found"); Set.empty
     }
   }
 
