@@ -9,30 +9,76 @@ import org.apache.pdfbox.text.PDFTextStripper
 import java.io.File
 import scala.annotation.tailrec
 
+sealed trait AnalyzeCommand
+
+case object StartAnalysis extends AnalyzeCommand
+
+case class Read(index: Int) extends AnalyzeCommand
+
+case class GetWords(page: ScalaPage, i: Int) extends AnalyzeCommand
+
+case class Analyze(words: Seq[String], index: Int) extends AnalyzeCommand
+
+case class AnalyzedUpTo(upTo: Int) extends AnalyzeCommand
+
+
 object Analyzer {
-  case class Analyze()
 
   def apply(path: String,
             replyTo: ActorRef[RankCommand],
             unwantedWords: Set[String] = Set.empty,
-           ): Behavior[Analyze] = {
-    Behaviors.receive { (context, message) =>
+           ): Behavior[AnalyzeCommand] = Behaviors.setup { context =>
+    val numberOfPages = getNumberOfPages(path)
+    Behaviors.receive { (_, message) =>
       message match {
-        case Analyze() =>
-          context.log.info(s"I am ${context.self} and I started analyzing $path")
-          val p: ScalaPage = read(path).getOrElse(ScalaPage(""))
-          val words = p.getRelevantWords(unwantedWords)
+        case StartAnalysis =>
+          context.self ! Read(0)
+          Behaviors.same
+
+        case Read(index) =>
+          val p: ScalaPage = readPage(path, index).getOrElse(ScalaPage(""))
+          context.self ! GetWords(p, index)
+          Behaviors.same
+
+        case GetWords(page: ScalaPage, index: Int) =>
+          val words = page.getRelevantWords(unwantedWords)
+          context.self ! Analyze(words, index)
+          Behaviors.same
+
+        case Analyze(words: Seq[String], index: Int) =>
           val rank = analyze(words)
           replyTo ! UpdateRank(rank, words.size)
-          Behaviors.stopped
+          context.self ! AnalyzedUpTo(index)
+          Behaviors.same
+
+        case AnalyzedUpTo(upTo) =>
+          if (upTo == numberOfPages)
+            Behaviors.stopped
+          else {
+
+            context.self ! Read(upTo + 1)
+            Behaviors.same
+          }
       }
+
     }
   }
 
+
+  def getNumberOfPages(path: String): Int = {
+    val doc = PDDocument.load(new File(path))
+    val n = doc.getNumberOfPages
+    doc.close()
+    n
+  }
+
   //if the path to doc exist extract the page else none
-  def read(path: String): Option[ScalaPage] = {
+  def readPage(path: String, from: Int = 0, to:Int =0): Option[ScalaPage] = {
     try {
       val doc = PDDocument.load(new File(path))
+      val stripper = new PDFTextStripper()
+      stripper.setStartPage(from)
+      stripper.setEndPage(to)
       if (doc.getCurrentAccessPermission.canExtractContent) {
         val p = ScalaPage(new PDFTextStripper().getText(doc))
         doc.close()
@@ -48,8 +94,7 @@ object Analyzer {
     @tailrec
     def _analyze(words: Seq[String], rank: Map[String, Int] = Map.empty): Map[String, Int] = words match {
       case h :: t =>
-        if (rank.keySet.contains(h)) _analyze(t, rank)
-        else _analyze(t.filterNot(_ == h), rank + (h -> words.count(_ == h)))
+        _analyze(t.filterNot(_ == h), rank + (h -> words.count(_ == h)))
       case _ => rank
     }
 

@@ -38,9 +38,9 @@ public class ViewScala extends JFrame implements ActionListener {
     private void addInputAndCounter(JFrame frame){
         JPanel dirPanel = new JPanel();
         JLabel directoryLabel = new JLabel("Set directory");
-        directoryText = new JTextField("/home/davide/Downloads/test",20);
+        directoryText = new JTextField("/home/luca/Desktop/prova",20);
         JLabel ignoreLabel = new JLabel("Set ignore file");
-        ignoreText = new JTextField("/home/davide/Downloads/test/ignored.txt",20);
+        ignoreText = new JTextField("/home/luca/Desktop/ignored.txt",20);
         JLabel numOfWordsCounted = new JLabel("Number of words: ");
         wordsCounterText = new JTextField("", 20);
         wordsCounterText.setEditable(false);
@@ -66,6 +66,7 @@ public class ViewScala extends JFrame implements ActionListener {
         stop = new JButton("Stop");
         stop.setActionCommand("stop");
         stop.addActionListener(this);
+        setStopButtonStatus(false);
         panel.add(start);
         panel.add(stop);
         frame.getContentPane().add(BorderLayout.SOUTH, panel); // Adds Button to content pane of frame
@@ -112,6 +113,11 @@ public class ViewScala extends JFrame implements ActionListener {
     public void setStartButtonStatus(boolean status){
         this.start.setEnabled(status);
     }
+
+    public void setStopButtonStatus(boolean status){
+        this.stop.setEnabled(status);
+    }
+
 
     public void rankUpdated(Map<String, Integer> rank){
         try {
