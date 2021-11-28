@@ -1,6 +1,6 @@
 package model
 
-case class ScalaPage(page: String) {
+case class Page(page: String) {
   /**
    * remove unwanted words from page and return all the other words as a List of String
    *
@@ -8,9 +8,9 @@ case class ScalaPage(page: String) {
    * @return string without unwantedWords
    */
   def getRelevantWords(unwantedWords: Set[String]): Seq[String] = {
-      page.toLowerCase
-        .replaceAll("[^\\p{L}\\p{Nd}]+", " ")
-        .split("\\s+")
-        .filterNot(w => unwantedWords.contains(w)||w.isEmpty)
+    page.toLowerCase
+      .replaceAll("[^\\p{L}\\p{Nd}]+", " ")
+      .split("\\s+")
+      .filterNot(w => unwantedWords.contains(w) || w.isEmpty)
   }
 }

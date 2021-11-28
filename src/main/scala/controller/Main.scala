@@ -3,13 +3,13 @@ package controller
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, ActorSystem, Behavior, Terminated}
 import model.{CreateRank, Rank, RankCommand, StopRank}
-import view.ViewScala
+import view.View
 
 import java.awt.event.ActionEvent
 import scala.jdk.CollectionConverters._
 
 object Main extends App {
-  var v = new ViewScala()
+  var v = new View()
   val system: ActorSystem[MainCommand] = ActorSystem(MainActor(v), "rank-controller")
   v.setStartButtonStatus(true)
   v.getStartButton.addActionListener((_: ActionEvent) => {
@@ -36,7 +36,7 @@ object MainActor {
 
   var rank: ActorRef[RankCommand] = _
 
-  def apply(viewScala: ViewScala): Behavior[MainCommand] = {
+  def apply(viewScala: View): Behavior[MainCommand] = {
     Behaviors.receive[MainCommand] { (context, message) =>
       message match {
         case Start =>

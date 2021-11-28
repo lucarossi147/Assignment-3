@@ -2,7 +2,7 @@ package controller
 
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior}
-import model.{RankCommand, ScalaPage, UpdateRank}
+import model.{RankCommand, Page, UpdateRank}
 import org.apache.pdfbox.pdmodel.PDDocument
 import org.apache.pdfbox.text.PDFTextStripper
 
@@ -15,7 +15,7 @@ case object StartAnalysis extends AnalyzeCommand
 
 case class Read(index: Int) extends AnalyzeCommand
 
-case class GetWords(page: ScalaPage, i: Int) extends AnalyzeCommand
+case class GetWords(page: Page, i: Int) extends AnalyzeCommand
 
 case class Analyze(words: Seq[String], index: Int) extends AnalyzeCommand
 
@@ -36,11 +36,11 @@ object Analyzer {
           Behaviors.same
 
         case Read(index) =>
-          val p: ScalaPage = readPage(path, index).getOrElse(ScalaPage(""))
+          val p: Page = readPage(path, index).getOrElse(Page(""))
           context.self ! GetWords(p, index)
           Behaviors.same
 
-        case GetWords(page: ScalaPage, index: Int) =>
+        case GetWords(page: Page, index: Int) =>
           val words = page.getRelevantWords(unwantedWords)
           context.self ! Analyze(words, index)
           Behaviors.same
@@ -73,14 +73,14 @@ object Analyzer {
   }
 
   //if the path to doc exist extract the page else none
-  def readPage(path: String, from: Int = 0, to:Int =0): Option[ScalaPage] = {
+  def readPage(path: String, from: Int = 0, to:Int =0): Option[Page] = {
     try {
       val doc = PDDocument.load(new File(path))
       val stripper = new PDFTextStripper()
       stripper.setStartPage(from)
       stripper.setEndPage(to)
       if (doc.getCurrentAccessPermission.canExtractContent) {
-        val p = ScalaPage(new PDFTextStripper().getText(doc))
+        val p = Page(new PDFTextStripper().getText(doc))
         doc.close()
         Some(p)
       } else

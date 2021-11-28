@@ -1,8 +1,5 @@
 package view;
 
-import controller.Controller;
-import model.RankMonitor;
-
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
@@ -11,24 +8,21 @@ import java.util.Map;
 
 public class View extends JFrame implements ActionListener {
 
-    private final Controller controller;
     private static final int GLOBAL_WIDTH = 350;
     private static final int GLOBAL_HEIGHT = 550;
     private static final String newline = "\n";
-    private final RankMonitor monitor;
     private JTextArea textArea;
     private JTextField directoryText;
     private JTextField wordsCounterText;
     private JTextField ignoreText;
     private JTextField wordsToBePrinted;
     private JButton start;
+    private JButton stop;
 
-    public View(Controller controller, RankMonitor monitor){
+    public View(){
         JFrame frame = new JFrame("WordsCounter");
         prepareFrame(frame);
         frame.setResizable(false);
-        this.controller = controller;
-        this.monitor = monitor;
     }
 
     public void prepareFrame(JFrame frame) {
@@ -68,9 +62,11 @@ public class View extends JFrame implements ActionListener {
         start = new JButton("Start");
         start.setActionCommand("start");
         start.addActionListener(this);
-        JButton stop = new JButton("Stop");
+        start.setEnabled(false);
+        stop = new JButton("Stop");
         stop.setActionCommand("stop");
         stop.addActionListener(this);
+        setStopButtonStatus(false);
         panel.add(start);
         panel.add(stop);
         frame.getContentPane().add(BorderLayout.SOUTH, panel); // Adds Button to content pane of frame
@@ -103,7 +99,7 @@ public class View extends JFrame implements ActionListener {
 
     @Override
     public void actionPerformed(ActionEvent e) {
-        SwingUtilities.invokeLater(()-> controller.processEvent(e.getActionCommand(), getDirectory()));
+        //SwingUtilities.invokeLater(()-> controller.processEvent(e.getActionCommand(), getDirectory()));
     }
 
     public JTextArea getTextArea(){
@@ -118,15 +114,17 @@ public class View extends JFrame implements ActionListener {
         this.start.setEnabled(status);
     }
 
-    public void rankUpdated(){
+    public void setStopButtonStatus(boolean status){
+        this.stop.setEnabled(status);
+    }
+
+
+    public void rankUpdated(Map<String, Integer> rank){
         try {
             SwingUtilities.invokeLater(() -> {
-                Map<String, Integer> mostFrequent = monitor.viewMostFrequentN(getNumOfWordsToBePrinted());
-                this.updateWordsCounter(mostFrequent.get("TOTAL_WORDS"));
-                mostFrequent.remove("TOTAL_WORDS");
                 this.getTextArea().setText("");
-                for (String s: mostFrequent.keySet()) {
-                    this.addTextToTextArea(this.getTextArea(), "Parola: " + s + " Occorenze: " + mostFrequent.get(s));
+                for (String s: rank.keySet()) {
+                    this.addTextToTextArea(this.getTextArea(), "Parola: " + s + " Occorenze: " + rank.get(s));
                 }
             });
         } catch (Exception ex){
@@ -137,5 +135,13 @@ public class View extends JFrame implements ActionListener {
     public void reset(){
         this.textArea.setText("");
         this.wordsCounterText.setText("0");
+    }
+
+    public JButton getStartButton(){
+        return this.start;
+    }
+
+    public JButton getStopButton(){
+        return this.stop;
     }
 }
