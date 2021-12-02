@@ -1,8 +1,8 @@
-package controller
+package part1.controller
 
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior}
-import model.{RankCommand, Page, UpdateRank}
+import part1.model.{RankCommand, Page, UpdateRank}
 import org.apache.pdfbox.pdmodel.PDDocument
 import org.apache.pdfbox.text.PDFTextStripper
 

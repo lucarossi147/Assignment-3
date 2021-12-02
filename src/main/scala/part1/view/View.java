@@ -1,4 +1,4 @@
-package view;
+package part1.view;
 
 import javax.swing.*;
 import java.awt.*;
@@ -99,7 +99,7 @@ public class View extends JFrame implements ActionListener {
 
     @Override
     public void actionPerformed(ActionEvent e) {
-        //SwingUtilities.invokeLater(()-> controller.processEvent(e.getActionCommand(), getDirectory()));
+        //SwingUtilities.invokeLater(()-> part1.controller.processEvent(e.getActionCommand(), getDirectory()));
     }
 
     public JTextArea getTextArea(){

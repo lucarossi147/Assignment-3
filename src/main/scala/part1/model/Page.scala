@@ -1,4 +1,4 @@
-package model
+package part1.model
 
 case class Page(page: String) {
   /**

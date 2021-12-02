@@ -1,16 +1,16 @@
-package controller
+package part1.controller
 
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, ActorSystem, Behavior, Terminated}
-import model.{CreateRank, Rank, RankCommand, StopRank}
-import view.View
+import part1.model.{CreateRank, Rank, RankCommand, StopRank}
+import part1.view.View
 
 import java.awt.event.ActionEvent
 import scala.jdk.CollectionConverters._
 
 object Main extends App {
   var v = new View()
-  val system: ActorSystem[MainCommand] = ActorSystem(MainActor(v), "rank-controller")
+  val system: ActorSystem[MainCommand] = ActorSystem(MainActor(v), "mainActor")
   v.setStartButtonStatus(true)
   v.getStartButton.addActionListener((_: ActionEvent) => {
     v.setStartButtonStatus(false)

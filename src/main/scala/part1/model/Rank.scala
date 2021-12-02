@@ -1,8 +1,8 @@
-package model
+package part1.model
 
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior, Terminated}
-import controller.{Analyzer, MainCommand, StartAnalysis, UpdateView}
+import part1.controller.{Analyzer, MainCommand, StartAnalysis, UpdateView}
 
 import java.io.FileNotFoundException
 import java.nio.file.{Files, Paths}
