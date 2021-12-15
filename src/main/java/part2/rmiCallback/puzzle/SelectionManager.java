@@ -1,6 +1,8 @@
 package part2.rmiCallback.puzzle;
 
-public class SelectionManager {
+import java.io.Serializable;
+
+public class SelectionManager implements Serializable {
 
 	private boolean selectionActive = false;
 	private Tile selectedTile;

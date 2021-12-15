@@ -44,7 +44,10 @@ public class Client {
         Questo è dovuto al fatto che viene serializzato un oggetto complesso come Tile e avvengono errori di rete..
         IO mi prendo la possibilità di questi errori, perchè se sbaglia il multiplayer di Fifa chi sono io per farlo corretto
 
-        Non vengono notificati i giocatori del fatto che la partita sia finita 
+        Non vengono notificati i giocatori del fatto che la partita sia finita
+
+        Fare diverse prove e cercare di fare funzionare se il master si disconette...
+
          */
     }
 }

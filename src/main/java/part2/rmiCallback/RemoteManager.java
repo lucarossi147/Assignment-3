@@ -13,4 +13,9 @@ public interface RemoteManager extends Remote {
 
     void setTiles(List<Tile> newTiles) throws RemoteException;
 
+    void registerClient(CallbackRemote c) throws RemoteException;
+
+    void unregisterClient(CallbackRemote c) throws RemoteException;
+
+    void notifyClients() throws RemoteException;
 }

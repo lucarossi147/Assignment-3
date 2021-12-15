@@ -1,7 +1,6 @@
 package part2.rmiCallback.puzzle;
 
-import part2.rmiCallback.RemoteManager;
-import part2.rmiCallback.RemoteManagerImpl;
+import part2.rmiCallback.*;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -11,6 +10,7 @@ import java.awt.event.WindowEvent;
 import java.awt.image.*;
 import java.io.File;
 import java.io.IOException;
+import java.io.Serializable;
 import java.rmi.*;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -27,6 +27,9 @@ public class PuzzleBoard extends JFrame {
     Registry registry;
     RemoteManager remoteInstance;
     final String OBJECT = "remoteInstance";
+    JPanel board;
+    CallbackRemote c;
+
 
     private final SelectionManager selectionManager = new SelectionManager();
 
@@ -45,9 +48,10 @@ public class PuzzleBoard extends JFrame {
         final JPanel board = initializePanel(rows, columns);
 
         connectAsClient(registry);
-
+        Runnable r = (Runnable & Serializable) () -> updateBoard();
         paintPuzzle(board);
-
+        this.c = new CallbackImpl(r);
+        remoteInstance.registerClient(c);
     }
 
     /**
@@ -67,9 +71,13 @@ public class PuzzleBoard extends JFrame {
 
         this.remoteInstance = remoteInstance;
         this.registry = registry;
-
+        Runnable r = (Runnable & Serializable) () -> updateBoard();
+        this.c = new CallbackImpl(r);
         createTiles();
         paintPuzzle(board);
+
+        System.out.println("Mi registro per la callback");
+        remoteInstance.registerClient(c);
         remoteInstance.setTiles(tiles);
 
     }
@@ -88,7 +96,7 @@ public class PuzzleBoard extends JFrame {
             }
         });
 
-        final JPanel board = new JPanel();
+        board = new JPanel();
         board.setBorder(BorderFactory.createLineBorder(Color.gray));
         board.setLayout(new GridLayout(rows, columns, 0, 0));
         getContentPane().add(board, BorderLayout.CENTER);
@@ -98,6 +106,7 @@ public class PuzzleBoard extends JFrame {
     private void cleanRegistry() {
         try {
             Registry registry = LocateRegistry.getRegistry();
+            remoteInstance.unregisterClient(c);
             registry.unbind(OBJECT);
         } catch (RemoteException y) {
             System.err.println("Remote exception on object destroy");
@@ -157,7 +166,7 @@ public class PuzzleBoard extends JFrame {
         final BufferedImage image;
 
         try {
-            image = ImageIO.read(new File("src/main/java/rmi/park.jpg"));
+            image = ImageIO.read(new File("src/main/java/part2/rmiCallback/park.jpg"));
         } catch (IOException ex) {
             JOptionPane.showMessageDialog(this, "Could not load image", "Error", JOptionPane.ERROR_MESSAGE);
             return;
@@ -213,4 +222,13 @@ public class PuzzleBoard extends JFrame {
         }
     }
 
+    public void updateBoard(){
+        try{
+            remoteInstance.getTiles();
+            paintPuzzle(board);
+        } catch (Exception e){
+            System.err.println("Error on update/callback");
+            e.printStackTrace();
+        }
+    }
 }

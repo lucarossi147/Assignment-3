@@ -184,7 +184,7 @@ public class PuzzleBoard extends JFrame {
         final BufferedImage image;
 
         try {
-            image = ImageIO.read(new File("src/main/java/rmi/park.jpg"));
+            image = ImageIO.read(new File("src/main/java/part2/rmiPooling/park.jpg"));
         } catch (IOException ex) {
             JOptionPane.showMessageDialog(this, "Could not load image", "Error", JOptionPane.ERROR_MESSAGE);
             return;
