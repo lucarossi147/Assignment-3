@@ -1,5 +1,7 @@
 package part2.rmiPooling.puzzle;
 
+import part2.common.Tile;
+
 import javax.swing.*;
 
 public class SelectionManager {

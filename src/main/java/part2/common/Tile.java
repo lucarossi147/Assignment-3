@@ -1,4 +1,4 @@
-package part2.rmiCallback.puzzle;
+package part2.common;
 
 import javax.swing.*;
 import java.awt.*;
@@ -10,6 +10,7 @@ public class Tile implements Comparable<Tile>, Serializable {
     private int currentPosition;
 
     public Tile(final Image image, final int originalPosition, final int currentPosition) {
+        super();
         this.wrapper = new ImageIcon(image);
         this.originalPosition = originalPosition;
         this.currentPosition = currentPosition;

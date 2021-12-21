@@ -1,4 +1,4 @@
-package part2.rmiCallback.puzzle;
+package part2.common;
 
 import javax.swing.*;
 import java.awt.*;

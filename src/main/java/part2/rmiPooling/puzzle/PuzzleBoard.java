@@ -1,7 +1,9 @@
 package part2.rmiPooling.puzzle;
 
-import part2.rmiPooling.RemoteManager;
-import part2.rmiPooling.RemoteManagerImpl;
+import part2.common.Tile;
+import part2.common.TileButton;
+import part2.rmiPooling.ServerRemote;
+import part2.rmiPooling.Server;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -22,11 +24,10 @@ import java.util.stream.IntStream;
 
 public class PuzzleBoard extends JFrame {
 
-    final int rows, columns;
     final int delay = 1000; //Millisecond of delay of every update
     private List<Tile> tiles = new ArrayList<>();
     Registry registry;
-    RemoteManager remoteInstance;
+    ServerRemote remoteInstance;
     final String OBJECT = "remoteInstance";
     Timer t;
 
@@ -41,9 +42,6 @@ public class PuzzleBoard extends JFrame {
      * @param registry Registry where the puzzle is located
      */
     public PuzzleBoard(final int rows, final int columns, Registry registry) throws RemoteException {
-        this.rows = rows;
-        this.columns = columns;
-
         final JPanel board = initializePanel(rows, columns);
 
         connectAsClient(registry);
@@ -63,16 +61,13 @@ public class PuzzleBoard extends JFrame {
      * @param remoteInstance reference to the puzzle
      * @param registry       Registry where the puzzle is located
      */
-    public PuzzleBoard(final int rows, final int columns, RemoteManager remoteInstance, Registry registry) throws RemoteException {
-        this.rows = rows;
-        this.columns = columns;
-
+    public PuzzleBoard(final int rows, final int columns, ServerRemote remoteInstance, Registry registry) throws RemoteException {
         final JPanel board = initializePanel(rows, columns);
 
         this.remoteInstance = remoteInstance;
         this.registry = registry;
 
-        createTiles();
+        createTiles(rows, columns);
         paintPuzzle(board);
         remoteInstance.setTiles(tiles);
 
@@ -80,13 +75,11 @@ public class PuzzleBoard extends JFrame {
         t.start();
     }
 
-    private Timer initializeTimer(RemoteManager remoteInstance, JPanel board) {
+    private Timer initializeTimer(ServerRemote remoteInstance, JPanel board) {
         return new Timer(delay, actionEvent -> {
             try {
-                //System.out.println("Update pooling");
                 List<Tile> newTiles = remoteInstance.getTiles();
                 if (tiles != newTiles && !newTiles.isEmpty()) {
-                    //System.err.println("Le tessere sono diverse.. Le aggiorno");
                     tiles = newTiles;
                     paintPuzzle(board);
                     checkSolution();
@@ -131,56 +124,7 @@ public class PuzzleBoard extends JFrame {
         }
     }
 
-    private void paintPuzzle(final JPanel board) throws RemoteException {
-        board.removeAll();
-        List<Tile> tmp = remoteInstance.getTiles();
-        if (!tmp.isEmpty()) {
-            tiles = tmp;
-        }
-        Collections.sort(tiles);
-        checkSolution();
-        tiles.forEach(tile -> {
-            final TileButton btn = new TileButton(tile);
-            board.add(btn);
-            btn.setBorder(BorderFactory.createLineBorder(Color.gray));
-            btn.addActionListener(actionListener -> selectionManager.selectTile(tile, () -> {
-                try {
-                    remoteInstance.setTiles(tiles);
-                    paintPuzzle(board); //On swap performed
-                    checkSolution();
-                } catch (ConnectException e) {
-                    try {
-                        System.err.println("Master disconnected...");
-                        if (registry.list().length == 0) {
-                            System.err.println("I will regenerate a puzzle board.");
-                            RemoteManager rm = new RemoteManagerImpl();
-                            remoteInstance = (RemoteManager) UnicastRemoteObject.exportObject(rm, 0);
-                            registry.rebind("remoteInstance", remoteInstance);
-                        } else {
-                            System.err.println("I will connect to new puzzle board...");
-                            remoteInstance = (RemoteManager) registry.lookup(OBJECT);
-                            remoteInstance.setTiles(tiles); //Setto le mie ultime tessere come quelle da distribuire
-                        }
-                        t.stop();
-                        t = initializeTimer(remoteInstance, board);
-                        t.start();
-                    } catch (RemoteException x) {
-                        System.err.println("Remote exception after master disconnection");
-                    } catch (NotBoundException x) {
-                        //Va bene, ho provato a riconettermi ma la partita era già finita...
-                        //System.err.println("Not bound after master disconnection");
-                    }
-                } catch (AccessException e) {
-                    System.err.println("Access exception on set tiles");
-                } catch (RemoteException e) {
-                    System.err.println("Remote exception on set tiles");
-                }
-            }, t));
-        });
-        pack();
-    }
-
-    private void createTiles() {
+    private void createTiles(int rows, int columns) {
         final BufferedImage image;
 
         try {
@@ -221,10 +165,61 @@ public class PuzzleBoard extends JFrame {
         }
     }
 
+    private void paintPuzzle(final JPanel board) throws RemoteException {
+        board.removeAll();
+        List<Tile> tmp = remoteInstance.getTiles();
+        if (!tmp.isEmpty()) {
+            tiles = tmp;
+        }
+        Collections.sort(tiles);
+        checkSolution();
+        tiles.forEach(tile -> {
+            final TileButton btn = new TileButton(tile);
+            board.add(btn);
+            btn.setBorder(BorderFactory.createLineBorder(Color.gray));
+            btn.addActionListener(actionListener -> selectionManager.selectTile(tile, () -> {
+                try {
+                    remoteInstance.setTiles(tiles);
+                    paintPuzzle(board); //On swap performed
+                    checkSolution();
+                } catch (ConnectException e) {
+                    try {
+                        System.err.println("Master disconnected...");
+                        if (registry.list().length == 0) {
+                            System.err.println("I will regenerate a puzzle board.");
+                            ServerRemote rm = new Server();
+                            remoteInstance = (ServerRemote) UnicastRemoteObject.exportObject(rm, 0);
+                            registry.rebind("remoteInstance", remoteInstance);
+                        } else {
+                            System.err.println("I will connect to new puzzle board...");
+                            remoteInstance = (ServerRemote) registry.lookup(OBJECT);
+                            remoteInstance.setTiles(tiles); //Setto le mie ultime tessere come quelle da distribuire
+                        }
+                        t.stop();
+                        t = initializeTimer(remoteInstance, board);
+                        t.start();
+                    } catch (RemoteException x) {
+                        System.err.println("Remote exception after master disconnection");
+                    } catch (NotBoundException x) {
+                        //Va bene, ho provato a riconettermi ma la partita era già finita...
+                        //System.err.println("Not bound after master disconnection");
+                    }
+                } catch (AccessException e) {
+                    System.err.println("Access exception on set tiles");
+                } catch (RemoteException e) {
+                    System.err.println("Remote exception on set tiles");
+                }
+            }, t));
+        });
+        pack();
+    }
+
+
+
     private void connectAsClient(Registry registry) {
         try {
             this.registry = registry;
-            this.remoteInstance = (RemoteManager) registry.lookup(OBJECT);
+            this.remoteInstance = (ServerRemote) registry.lookup(OBJECT);
             this.tiles = remoteInstance.getTiles();
         } catch (ConnectException e){
             System.err.println("Connect exception on creation");

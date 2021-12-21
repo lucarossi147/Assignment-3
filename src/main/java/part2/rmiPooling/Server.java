@@ -1,13 +1,13 @@
 package part2.rmiPooling;
 
 
-import part2.rmiPooling.puzzle.Tile;
+import part2.common.Tile;
 
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class RemoteManagerImpl implements RemoteManager {
+public class Server implements ServerRemote {
     List<Tile> tiles = new ArrayList<>();
 
     @Override

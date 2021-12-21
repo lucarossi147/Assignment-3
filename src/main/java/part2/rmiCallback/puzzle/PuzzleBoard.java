@@ -1,10 +1,13 @@
 package part2.rmiCallback.puzzle;
 
+import part2.common.Tile;
+import part2.common.TileButton;
 import part2.rmiCallback.*;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ActionEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.image.*;
@@ -18,18 +21,14 @@ import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.IntStream;
 
 public class PuzzleBoard extends JFrame {
 
-    final int rows, columns;
     private List<Tile> tiles = new ArrayList<>();
-    Registry registry;
-    RemoteManager remoteInstance;
-    final String OBJECT = "remoteInstance";
-    JPanel board;
-    CallbackRemote c;
-
+    private Registry registry;
+    private ServerRemote remoteInstance;
+    private JPanel board;
+    private ClientRemote callbackReference;
 
     private final SelectionManager selectionManager = new SelectionManager();
 
@@ -41,17 +40,14 @@ public class PuzzleBoard extends JFrame {
      * @param columns  of the puzzle
      * @param registry Registry where the puzzle is located
      */
-    public PuzzleBoard(final int rows, final int columns, Registry registry) throws RemoteException {
-        this.rows = rows;
-        this.columns = columns;
-
-        final JPanel board = initializePanel(rows, columns);
+    public PuzzleBoard(int rows, int columns, Registry registry) throws RemoteException, NotBoundException {
+        board = initializePanel(rows, columns);
 
         connectAsClient(registry);
-        Runnable r = (Runnable & Serializable) () -> updateBoard();
+
+        registerForCallback(remoteInstance);
+
         paintPuzzle(board);
-        this.c = new CallbackImpl(r);
-        remoteInstance.registerClient(c);
     }
 
     /**
@@ -63,30 +59,35 @@ public class PuzzleBoard extends JFrame {
      * @param remoteInstance reference to the puzzle
      * @param registry       Registry where the puzzle is located
      */
-    public PuzzleBoard(final int rows, final int columns, RemoteManager remoteInstance, Registry registry) throws RemoteException {
-        this.rows = rows;
-        this.columns = columns;
-
-        final JPanel board = initializePanel(rows, columns);
+    public PuzzleBoard(int rows, int columns, ServerRemote remoteInstance, Registry registry) throws RemoteException {
+        board = initializePanel(rows, columns);
+        createTiles(rows, columns);
 
         this.remoteInstance = remoteInstance;
         this.registry = registry;
-        Runnable r = (Runnable & Serializable) () -> updateBoard();
-        this.c = new CallbackImpl(r);
-        createTiles();
-        paintPuzzle(board);
 
-        System.out.println("Mi registro per la callback");
-        remoteInstance.registerClient(c);
+        registerForCallback(remoteInstance);
+
         remoteInstance.setTiles(tiles);
 
+        paintPuzzle(board);
     }
 
+    private void registerForCallback(ServerRemote remoteInstance) throws RemoteException {
+        //noinspection Convert2MethodRef
+        Runnable r = (Runnable & Serializable) () -> updateBoard();
+
+        //noinspection Convert2MethodRef
+        //Runnable f = (Runnable & Serializable) () -> closeMatch();
+
+        callbackReference = new ClientRemote(r);
+        remoteInstance.registerClient(callbackReference);
+    }
 
     private JPanel initializePanel(int rows, int columns) {
         setTitle("Puzzle");
         setResizable(false);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 
         addWindowListener(new WindowAdapter() {
             @Override
@@ -106,64 +107,62 @@ public class PuzzleBoard extends JFrame {
     private void cleanRegistry() {
         try {
             Registry registry = LocateRegistry.getRegistry();
-            remoteInstance.unregisterClient(c);
-            registry.unbind(OBJECT);
-        } catch (RemoteException y) {
-            System.err.println("Remote exception on object destroy");
-        } catch (NotBoundException nb) {
-            System.err.println("Not bound exception on object destroy");
+            remoteInstance.unregisterClient(callbackReference);
+            registry.unbind(Main.instanceName);
+        } catch (RemoteException | NotBoundException e) {
+            //TODO potrebbe essere "normale" o accettabile
+            //System.err.println("Remote exception on object destroy");
         }
     }
 
-    private void paintPuzzle(final JPanel board) throws RemoteException {
+    private void paintPuzzle(JPanel board) throws RemoteException {
         board.removeAll();
         List<Tile> tmp = remoteInstance.getTiles();
-        if (!tmp.isEmpty()) {
-            tiles = tmp;
-        }
-        Collections.sort(tiles);
         checkSolution();
-        tiles.forEach(tile -> {
-            final TileButton btn = new TileButton(tile);
+        if (!tmp.isEmpty()) tiles = tmp;
+
+        Collections.sort(tiles);
+        for (Tile tile : tiles) {
+            TileButton btn = new TileButton(tile);
             board.add(btn);
             btn.setBorder(BorderFactory.createLineBorder(Color.gray));
-            btn.addActionListener(actionListener -> selectionManager.selectTile(tile, () -> {
+            btn.addActionListener((ActionEvent actionListener) ->
+            selectionManager.selectTile(tile, () -> {
                 try {
                     remoteInstance.setTiles(tiles);
                     paintPuzzle(board); //On swap performed
                     checkSolution();
                 } catch (ConnectException e) {
-                    try {
-                        System.err.println("Master disconnected...");
-                        if (registry.list().length == 0) {
-                            System.err.println("I will regenerate a puzzle board.");
-                            RemoteManager rm = new RemoteManagerImpl();
-                            remoteInstance = (RemoteManager) UnicastRemoteObject.exportObject(rm, 0);
-                            registry.rebind("remoteInstance", remoteInstance);
-                        } else {
-                            System.err.println("I will connect to new puzzle board...");
-                            remoteInstance = (RemoteManager) registry.lookup(OBJECT);
-                            remoteInstance.setTiles(tiles); //Setto le mie ultime tessere come quelle da distribuire
-                        }
-
-                    } catch (RemoteException x) {
-                        System.err.println("Remote exception after master disconnection");
-                    } catch (NotBoundException x) {
-                        //Va bene, ho provato a riconettermi ma la partita era già finita...
-                        //System.err.println("Not bound after master disconnection");
-                    }
-                } catch (AccessException e) {
-                    System.err.println("Access exception on set tiles");
+                    manageDisconnection();
                 } catch (RemoteException e) {
                     System.err.println("Remote exception on set tiles");
                 }
             }));
-        });
+        }
         pack();
     }
 
-    private void createTiles() {
-        final BufferedImage image;
+    private void manageDisconnection() {
+        //System.out.println("Master disconnected...");
+        try {
+            if (0 == registry.list().length) { //Sono il primo a riconettersi, ricreo l'oggetto...
+                System.out.println("I will regenerate a puzzle board.");
+                Remote rm = new Server();
+                remoteInstance = (ServerRemote) UnicastRemoteObject.exportObject(rm, 0);
+                registry.rebind(Main.instanceName, remoteInstance);
+            } else {
+                System.out.println("I will connect to new puzzle board...");
+                remoteInstance = (ServerRemote) registry.lookup(Main.instanceName);
+            }
+            registerForCallback(remoteInstance);
+            remoteInstance.setTiles(tiles); //Setto le mie ultime tessere come quelle da distribuire
+        } catch (RemoteException | NotBoundException x) {
+            System.out.println("Exception after master disconnection");
+        }
+    }
+
+    private void createTiles(int rows, int columns) {
+        BufferedImage image;
 
         try {
             image = ImageIO.read(new File("src/main/java/part2/rmiCallback/park.jpg"));
@@ -172,63 +171,64 @@ public class PuzzleBoard extends JFrame {
             return;
         }
 
-        final int imageWidth = image.getWidth(null);
-        final int imageHeight = image.getHeight(null);
+        int imageWidth = image.getWidth(null);
+        int imageHeight = image.getHeight(null);
 
-        int position = 0;
-
-        final List<Integer> randomPositions = new ArrayList<>();
-        IntStream.range(0, rows * columns).forEach(randomPositions::add);
+        List<Integer> randomPositions = new ArrayList<>();
+        for (int i1 = 0; i1 < rows * columns; i1++) randomPositions.add(i1);
         Collections.shuffle(randomPositions);
 
-        for (int i = 0; i < rows; i++) {
+        int position = 0;
+        for (int i = 0; i < rows; i++)
             for (int j = 0; j < columns; j++) {
-                final Image imagePortion = createImage(new FilteredImageSource(image.getSource(),
-                        new CropImageFilter(j * imageWidth / columns,
-                                i * imageHeight / rows,
-                                (imageWidth / columns),
+                Image imagePortion = createImage(new FilteredImageSource(image.getSource(),
+                        new CropImageFilter((j * imageWidth) / columns,
+                                (i * imageHeight) / rows,
+                                imageWidth / columns,
                                 imageHeight / rows)));
 
                 tiles.add(new Tile(imagePortion, position, randomPositions.get(position)));
                 position++;
             }
-        }
     }
 
     private void checkSolution() {
-        if (tiles.stream().allMatch(Tile::isInRightPlace)) {
-            JOptionPane.showMessageDialog(this, "Puzzle Completed!", "", JOptionPane.INFORMATION_MESSAGE);
-            cleanRegistry();
-            System.exit(0);
-        }
-    }
-
-    private void connectAsClient(Registry registry) {
         try {
-            this.registry = registry;
-            this.remoteInstance = (RemoteManager) registry.lookup(OBJECT);
-            this.tiles = remoteInstance.getTiles();
-        } catch (ConnectException e){
-            System.err.println("Connect exception on creation");
-        } catch (AccessException e) {
-            System.err.println("Access exception on creation");
-            e.printStackTrace();
+            if (tiles.stream().allMatch(Tile::isInRightPlace)) {
+                System.err.println("You finished the puzzle");
+                remoteInstance.setFinished();
+                closeMatch();
+            } else if (remoteInstance.isFinished()){
+                closeMatch();
+            }
         } catch (RemoteException e) {
-            System.err.println("Remote exception on creation");
-            e.printStackTrace();
-        } catch (NotBoundException e) {
-            System.err.println("Not bound exception on creation");
             e.printStackTrace();
         }
+
     }
 
-    public void updateBoard(){
-        try{
-            remoteInstance.getTiles();
+    private void closeMatch() {
+        JOptionPane.showMessageDialog(board, "Puzzle Completed!", "Congrats", JOptionPane.INFORMATION_MESSAGE);
+        //System.out.println("Match finished");
+        cleanRegistry();
+        System.exit(0);
+    }
+
+    private void connectAsClient(Registry registry) throws RemoteException, NotBoundException {
+        this.registry = registry;
+        remoteInstance = (ServerRemote) registry.lookup(Main.instanceName);
+        tiles = remoteInstance.getTiles();
+    }
+
+    private void updateBoard() {
+        try {
+            if(remoteInstance.isFinished()){
+                System.err.println("Other player finished the Puzzle...");
+                closeMatch();
+            }
             paintPuzzle(board);
-        } catch (Exception e){
+        } catch (RemoteException e) {
             System.err.println("Error on update/callback");
-            e.printStackTrace();
         }
     }
 }

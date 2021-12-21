@@ -9,7 +9,7 @@ import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.Arrays;
 
-public class Client {
+public class Main {
     public static void main(String[] args) {
         final int n = 3;
         final int m = 5;
@@ -25,8 +25,8 @@ public class Client {
                 puzzle.setVisible(true);
             } else { //Sono il "master" e creo la copia remota
                 System.out.println("Avviando il gioco come master...");
-                RemoteManager remoteInstance = new RemoteManagerImpl();
-                RemoteManager stub = (RemoteManager) UnicastRemoteObject.exportObject(remoteInstance, 0);
+                ServerRemote remoteInstance = new Server();
+                ServerRemote stub = (ServerRemote) UnicastRemoteObject.exportObject(remoteInstance, 0);
                 registry.rebind(OBJECT, stub);
                 PuzzleBoard puzzle = new PuzzleBoard(n, m, remoteInstance, registry);
                 puzzle.setVisible(true);

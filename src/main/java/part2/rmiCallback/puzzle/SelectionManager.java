@@ -1,5 +1,7 @@
 package part2.rmiCallback.puzzle;
 
+import part2.common.Tile;
+
 import java.io.Serializable;
 
 public class SelectionManager implements Serializable {
