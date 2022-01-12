@@ -5,9 +5,7 @@ import part3.akka.Tile;
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
-import java.awt.image.BufferedImage;
-import java.awt.image.CropImageFilter;
-import java.awt.image.FilteredImageSource;
+import java.awt.image.*;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -22,7 +20,8 @@ public class PuzzleBoard extends JFrame {
 	private List<Tile> tiles = new ArrayList<>();
 	private final JPanel board = new JPanel();
 	private final SelectionManager selectionManager = new SelectionManager();
-	
+	private final List<ImageIcon> imageTiles = new ArrayList<>();
+
     public PuzzleBoard(final int rows, final int columns, final String imagePath) {
     	this.rows = rows;
 		this.columns = columns;
@@ -43,7 +42,7 @@ public class PuzzleBoard extends JFrame {
     
     private void createTiles(final String imagePath) {
 		final BufferedImage image;
-        
+
         try {
             image = ImageIO.read(new File(imagePath));
         } catch (IOException ex) {
@@ -55,20 +54,20 @@ public class PuzzleBoard extends JFrame {
         final int imageHeight = image.getHeight(null);
 
         int position = 0;
-        
+
         final List<Integer> randomPositions = new ArrayList<>();
         IntStream.range(0, rows*columns).forEach(randomPositions::add);
         Collections.shuffle(randomPositions);
-        
+
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < columns; j++) {
             	final ImageIcon imagePortion = new ImageIcon( createImage(new FilteredImageSource(image.getSource(),
-                        new CropImageFilter(j * imageWidth / columns, 
-                        					i * imageHeight / rows, 
-                        					(imageWidth / columns), 
+                        new CropImageFilter(j * imageWidth / columns,
+                        					i * imageHeight / rows,
+                        					(imageWidth / columns),
                         					imageHeight / rows))));
-
-                tiles.add(new Tile(imagePortion, position, randomPositions.get(position)));
+                tiles.add(new Tile(position, randomPositions.get(position)));
+                imageTiles.add(imagePortion);
                 position++;
             }
         }
@@ -80,7 +79,7 @@ public class PuzzleBoard extends JFrame {
     	Collections.sort(tiles);
 
     	tiles.forEach(tile -> {
-    		final TileButton btn = new TileButton(tile);
+    		final TileButton btn = new TileButton(tile, imageTiles);
             board.add(btn);
             btn.setBorder(BorderFactory.createLineBorder(Color.gray));
             btn.addActionListener(actionListener -> selectionManager.selectTile(tile, () -> {
@@ -109,4 +108,6 @@ public class PuzzleBoard extends JFrame {
     public void rePaintPuzzle(){
         paintPuzzle(board);
     }
+
+    public List<ImageIcon> getTilesImages() { return this.imageTiles;}
 }

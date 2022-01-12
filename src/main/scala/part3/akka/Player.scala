@@ -18,7 +18,7 @@ object Player {
   val n = 2
   val m = 2
   def apply(puzzleService: ActorRef[PuzzleServiceCommand]): Behavior[PlayerCommand] = Behaviors.setup {ctx =>
-    val imagePath = "/home/luca/Desktop/progConcorrenteEDistribuita/Assignment-3/src/main/java/part2/rmiCallback/park.jpg"
+    val imagePath = "/home/davide/Assignment-3/src/main/java/part2/rmiCallback/park.jpg"
     val board = new PuzzleBoard(n, m, imagePath)
 
     puzzleService ! GetTiles(ctx.self)
