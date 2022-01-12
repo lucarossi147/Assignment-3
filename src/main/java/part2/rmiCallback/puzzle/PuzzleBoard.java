@@ -208,7 +208,8 @@ public class PuzzleBoard extends JFrame {
     }
 
     private void closeMatch() {
-        JOptionPane.showMessageDialog(board, "Puzzle Completed!", "Congrats", JOptionPane.INFORMATION_MESSAGE);
+        //TODO rimane che se è il master a finire gli altri non si accorgono
+        //TODO si blocca JOptionPane.showMessageDialog(board, "Puzzle Completed!", "Congrats", JOptionPane.INFORMATION_MESSAGE);
         //System.out.println("Match finished");
         cleanRegistry();
         System.exit(0);
