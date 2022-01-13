@@ -20,7 +20,6 @@ object Player {
   def apply(puzzleService: ActorRef[PuzzleServiceCommand]): Behavior[PlayerCommand] = Behaviors.setup {ctx =>
     val imagePath = "./src/main/resources/customLogo.png"
     val board = new PuzzleBoard(n, m, imagePath)
-    var initTries = 0
 
     puzzleService ! GetTiles(ctx.self)
 
@@ -30,11 +29,7 @@ object Player {
         Behaviors.same
 
       case CreateTiles =>
-        if (initTries < 10) {
-          initTries += 1
-          puzzleService ! GetTiles(ctx.self)
-        }
-        else puzzleService ! SetTiles(board.getTiles.asScala.toSet)
+        puzzleService ! SetTiles(board.getTiles.asScala.toSet)
         Behaviors.same
 
       case Tiles(tiles) =>

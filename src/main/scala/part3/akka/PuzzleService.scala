@@ -43,7 +43,8 @@ object PuzzleService {
       implicit val node: SelfUniqueAddress = DistributedData(context.system).selfUniqueAddress
       Behaviors.receiveMessage[PuzzleServiceCommand] {
 
-            //if I'm up, Spawn the player
+        //VERY IMPORTANT
+        //if I'm up, Spawn the player
         case SpawnPlayer =>
           if (cluster.selfMember.status == MemberStatus.Up)
             player = context.spawn(Player(context.self), "player")
