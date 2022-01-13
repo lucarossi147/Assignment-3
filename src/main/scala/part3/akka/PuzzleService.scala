@@ -2,15 +2,20 @@ package part3.akka
 
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior}
+import akka.cluster.MemberStatus
 import akka.cluster.ddata.Replicator.UpdateResponse
 import akka.cluster.ddata.typed.scaladsl.Replicator._
 import akka.cluster.ddata.typed.scaladsl.{DistributedData, Replicator}
 import akka.cluster.ddata.{GSet, GSetKey, SelfUniqueAddress}
+import akka.cluster.typed.Cluster
 import part3.akka.Player.{CreateTiles, Failure, PlayerCommand, Tiles}
+
+import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 
 object PuzzleService {
 
   trait PuzzleServiceCommand
+  final case object SpawnPlayer extends PuzzleServiceCommand
   final case class GetTiles(replyTo: ActorRef[PlayerCommand]) extends PuzzleServiceCommand
   final case class SetTiles(tiles: Set[Tile]) extends PuzzleServiceCommand
   final case object Won extends PuzzleServiceCommand
@@ -26,8 +31,10 @@ object PuzzleService {
 
     implicit val node: SelfUniqueAddress = DistributedData(context.system).selfUniqueAddress
     val key = GSetKey[Tile]("puzzleBoard")
+    val cluster = Cluster(context.system)
+    var player: ActorRef[PlayerCommand] = null
 
-    val player = context.spawn(Player(context.self), "player")
+    context.self ! SpawnPlayer
 
     DistributedData.withReplicatorMessageAdapter[PuzzleServiceCommand, GSet[Tile]] { replicator =>
       // Subscribe to changes of the given `key`.
@@ -36,10 +43,18 @@ object PuzzleService {
       implicit val node: SelfUniqueAddress = DistributedData(context.system).selfUniqueAddress
       Behaviors.receiveMessage[PuzzleServiceCommand] {
 
+            //if I'm up, Spawn the player
+        case SpawnPlayer =>
+          if (cluster.selfMember.status == MemberStatus.Up)
+            player = context.spawn(Player(context.self), "player")
+          else
+            context.self ! SpawnPlayer
+          Behaviors.same
+
         case GetTiles(replyTo) =>
           context.log.debug("ENTERING GET TILES")
           replicator.askGet(
-            Get(key, ReadLocal),
+            Get(key, ReadAll(FiniteDuration(500, MILLISECONDS))),
             value => InternalGetResponse(replyTo, value)
           )
           Behaviors.same
@@ -51,7 +66,6 @@ object PuzzleService {
             Update(key, GSet.empty[Tile], WriteLocal)(_.copy(tiles)),
             InternalUpdateResponse.apply
           )
-          context.log.debug("EXITING SET TILES")
           Behaviors.same
 
         case internal: InternalPuzzleServiceCommand => internal match {
@@ -62,7 +76,6 @@ object PuzzleService {
 
           case InternalGetResponse(replyTo, NotFound(_)) =>
             context.log.debug("ENTERING INTERNAL GET -> NOT FOUND RESPONSE")
-            context.log.info("PUZZLE NOT FOUND IN CLUSTER")
             replyTo ! CreateTiles
             Behaviors.same
 
@@ -74,7 +87,6 @@ object PuzzleService {
 
           case InternalGetResponse(replyTo, GetFailure(_) ) =>
             context.log.debug("ENTERING INTERNAL GET -> FAILURE RESPONSE")
-            context.log.info("THERE HAVE BEEN A FAILURE")
             replyTo ! Failure
             Behaviors.same
 

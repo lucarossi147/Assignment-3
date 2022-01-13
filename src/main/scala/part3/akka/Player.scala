@@ -18,8 +18,9 @@ object Player {
   val n = 2
   val m = 2
   def apply(puzzleService: ActorRef[PuzzleServiceCommand]): Behavior[PlayerCommand] = Behaviors.setup {ctx =>
-    val imagePath = "/home/davide/Assignment-3/src/main/java/part2/rmiCallback/park.jpg"
+    val imagePath = "./src/main/resources/customLogo.png"
     val board = new PuzzleBoard(n, m, imagePath)
+    var initTries = 0
 
     puzzleService ! GetTiles(ctx.self)
 
@@ -29,7 +30,11 @@ object Player {
         Behaviors.same
 
       case CreateTiles =>
-        puzzleService ! SetTiles(board.getTiles.asScala.toSet)
+        if (initTries < 10) {
+          initTries += 1
+          puzzleService ! GetTiles(ctx.self)
+        }
+        else puzzleService ! SetTiles(board.getTiles.asScala.toSet)
         Behaviors.same
 
       case Tiles(tiles) =>
