@@ -5,6 +5,7 @@ import akka.actor.typed.{ActorRef, Behavior}
 import part3.akka.PuzzleService.{GetTiles, PuzzleServiceCommand, SetTiles}
 import part3.akka.puzzle.PuzzleBoard
 
+import java.beans.{PropertyChangeEvent, PropertyChangeListener}
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters._
 
@@ -20,6 +21,8 @@ object Player {
   def apply(puzzleService: ActorRef[PuzzleServiceCommand]): Behavior[PlayerCommand] = Behaviors.setup {ctx =>
     val imagePath = "./src/main/resources/customLogo.png"
     val board = new PuzzleBoard(n, m, imagePath)
+    val observer = new MyObserver(puzzleService)
+    board.addPropertyChangeListener(observer)
 
     puzzleService ! GetTiles(ctx.self)
 
@@ -42,4 +45,13 @@ object Player {
     }
   }
 
+}
+
+class MyObserver(puzzleService: ActorRef[PuzzleServiceCommand]) extends PropertyChangeListener {
+  override def propertyChange(evt: PropertyChangeEvent): Unit = {
+    println("tiles changed")
+    val javaList = evt.getNewValue.asInstanceOf[java.util.List[Tile]]
+    println(javaList)
+    puzzleService ! SetTiles(javaList.asScala.toSet)
+  }
 }

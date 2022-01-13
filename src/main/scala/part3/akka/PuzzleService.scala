@@ -98,10 +98,6 @@ object PuzzleService {
             context.self ! GetTiles(player)
             Behaviors.same
 
-          case InternalSubscribeResponse(chg) =>
-            context.log.debug("ENTERING INTERNAL SUBSCRIBE RESPONSE")
-            Behaviors.same
-
           case _ =>
             context.log.debug("OTHER INTERNAL")
             Behaviors.same

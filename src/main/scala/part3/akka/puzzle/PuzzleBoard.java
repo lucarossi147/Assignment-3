@@ -6,6 +6,8 @@ import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.*;
+import java.beans.PropertyChangeListener;
+import java.beans.PropertyChangeSupport;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -21,6 +23,7 @@ public class PuzzleBoard extends JFrame {
 	private final JPanel board = new JPanel();
 	private final SelectionManager selectionManager = new SelectionManager();
 	private final List<ImageIcon> imageTiles = new ArrayList<>();
+    private PropertyChangeSupport support;
 
     public PuzzleBoard(final int rows, final int columns, final String imagePath) {
     	this.rows = rows;
@@ -36,6 +39,7 @@ public class PuzzleBoard extends JFrame {
         
         createTiles(imagePath);
         paintPuzzle(board);
+        support = new PropertyChangeSupport(tiles);
         setVisible(true);
     }
 
@@ -84,6 +88,7 @@ public class PuzzleBoard extends JFrame {
             btn.setBorder(BorderFactory.createLineBorder(Color.gray));
             btn.addActionListener(actionListener -> selectionManager.selectTile(tile, () -> {
                 paintPuzzle(board);
+                support.firePropertyChange("tiles", List.of(tile), tiles);
                 checkSolution();
             }));
     	});
@@ -107,6 +112,11 @@ public class PuzzleBoard extends JFrame {
 
     public void rePaintPuzzle(){
         paintPuzzle(board);
+    }
+
+    @Override
+    public void addPropertyChangeListener(PropertyChangeListener pcl){
+        support.addPropertyChangeListener(pcl);
     }
 
     public List<ImageIcon> getTilesImages() { return this.imageTiles;}
