@@ -6,7 +6,7 @@ import akka.cluster.MemberStatus
 import akka.cluster.ddata.Replicator.UpdateResponse
 import akka.cluster.ddata.typed.scaladsl.Replicator._
 import akka.cluster.ddata.typed.scaladsl.{DistributedData, Replicator}
-import akka.cluster.ddata.{GSet, GSetKey, SelfUniqueAddress}
+import akka.cluster.ddata.{ ORSet, ORSetKey, SelfUniqueAddress}
 import akka.cluster.typed.Cluster
 import part3.akka.Player.{CreateTiles, Failure, PlayerCommand, Tiles}
 
@@ -15,28 +15,29 @@ import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 object PuzzleService {
 
   trait PuzzleServiceCommand
+  final case object ClearTiles extends PuzzleServiceCommand
+  final case class AddTiles(tiles: Set[Tile]) extends PuzzleServiceCommand
   final case object SpawnPlayer extends PuzzleServiceCommand
   final case class GetTiles(replyTo: ActorRef[PlayerCommand]) extends PuzzleServiceCommand
   final case class SetTiles(tiles: Set[Tile]) extends PuzzleServiceCommand
-  final case object Won extends PuzzleServiceCommand
   final case class PaintPuzzle(tiles: Set[Tile]) extends PuzzleServiceCommand
 
   sealed trait InternalPuzzleServiceCommand extends PuzzleServiceCommand
-  final case class InternalUpdateResponse(response: UpdateResponse[GSet[Tile]]) extends InternalPuzzleServiceCommand
-  final case class InternalGetResponse(replyTo: ActorRef[PlayerCommand], rsp: GetResponse[GSet[Tile]]) extends InternalPuzzleServiceCommand
-  final case class InternalSubscribeResponse(chg: SubscribeResponse[GSet[Tile]]) extends InternalPuzzleServiceCommand
-  final case class InternalUpdate(asd: Replicator.Update[GSet[Tile]]) extends InternalPuzzleServiceCommand
+  final case class InternalUpdateResponse(response: UpdateResponse[ORSet[Tile]]) extends InternalPuzzleServiceCommand
+  final case class InternalGetResponse(replyTo: ActorRef[PlayerCommand], rsp: GetResponse[ORSet[Tile]]) extends InternalPuzzleServiceCommand
+  final case class InternalSubscribeResponse(chg: SubscribeResponse[ORSet[Tile]]) extends InternalPuzzleServiceCommand
+  final case class InternalUpdate(asd: Replicator.Update[ORSet[Tile]]) extends InternalPuzzleServiceCommand
 
   def apply(): Behavior[PuzzleServiceCommand] = Behaviors.setup { context =>
 
     implicit val node: SelfUniqueAddress = DistributedData(context.system).selfUniqueAddress
-    val key = GSetKey[Tile]("puzzleBoard")
+    val key = ORSetKey[Tile]("puzzleBoard")
     val cluster = Cluster(context.system)
     var player: ActorRef[PlayerCommand] = null
 
     context.self ! SpawnPlayer
 
-    DistributedData.withReplicatorMessageAdapter[PuzzleServiceCommand, GSet[Tile]] { replicator =>
+    DistributedData.withReplicatorMessageAdapter[PuzzleServiceCommand, ORSet[Tile]] { replicator =>
       // Subscribe to changes of the given `key`.
       replicator.subscribe(key, InternalSubscribeResponse.apply)
 
@@ -63,12 +64,31 @@ object PuzzleService {
         case SetTiles(tiles) =>
           context.log.debug("ENTERING SET TILES")
           context.log.debug(s"RECEIVED ${tiles.size.toString} TILES" )
+          context.self ! ClearTiles
+          context.self ! AddTiles(tiles)
+          Behaviors.same
+
+        case ClearTiles =>
+          context.log.debug("CLEARING TILES")
           replicator.askUpdate(
-            Update(key, GSet.empty[Tile], WriteLocal)(_.copy(tiles)),
+            Update(key, ORSet.empty[Tile], WriteLocal)(_.clear(node)),
             InternalUpdateResponse.apply
           )
           Behaviors.same
 
+        case AddTiles(tiles) =>
+          context.log.debug("ENTERING ADD TILES")
+          context.log.debug("Tiles Received "+ tiles)
+          var myNewORSet = ORSet.empty[Tile]
+          for (t <- tiles) {
+            myNewORSet = myNewORSet.add(node, t)
+          }
+          context.log.debug("Or Set size "+ myNewORSet.size.toString)
+          replicator.askUpdate(
+            Update(key, ORSet.empty[Tile], WriteLocal)(_.merge(myNewORSet)),
+            InternalUpdateResponse.apply
+          )
+          Behaviors.same
         case internal: InternalPuzzleServiceCommand => internal match {
 
           case _: InternalUpdateResponse =>
@@ -97,15 +117,7 @@ object PuzzleService {
             //non e' detto che vada
             context.self ! GetTiles(player)
             Behaviors.same
-
-          case _ =>
-            context.log.debug("OTHER INTERNAL")
-            Behaviors.same
-
         }
-        case _ =>
-          context.log.debug("OTHER")
-          Behaviors.same
       }
     }
   }

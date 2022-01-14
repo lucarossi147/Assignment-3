@@ -112,6 +112,7 @@ public class PuzzleBoard extends JFrame {
 
     public void rePaintPuzzle(){
         paintPuzzle(board);
+        checkSolution();
     }
 
     @Override

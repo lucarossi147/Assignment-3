@@ -16,14 +16,15 @@ object Player {
   case object CreateTiles extends PlayerCommand
   final case class Tiles(tiles: Set[Tile]) extends PlayerCommand
 
-  val n = 2
-  val m = 2
+  val n = 4
+  val m = 4
   def apply(puzzleService: ActorRef[PuzzleServiceCommand]): Behavior[PlayerCommand] = Behaviors.setup {ctx =>
-    val imagePath = "./src/main/resources/customLogo.png"
+    val imagePath = "./src/main/resources/park.jpg"
     val board = new PuzzleBoard(n, m, imagePath)
     val observer = new MyObserver(puzzleService)
     board.addPropertyChangeListener(observer)
 
+    //init the PuzzleBoard with the board state taken from the cluster
     puzzleService ! GetTiles(ctx.self)
 
     Behaviors.receiveMessage {
@@ -49,9 +50,9 @@ object Player {
 
 class MyObserver(puzzleService: ActorRef[PuzzleServiceCommand]) extends PropertyChangeListener {
   override def propertyChange(evt: PropertyChangeEvent): Unit = {
-    println("tiles changed")
+//    println("tiles changed")
     val javaList = evt.getNewValue.asInstanceOf[java.util.List[Tile]]
-    println(javaList)
+    //transform a java list to a scala list
     puzzleService ! SetTiles(javaList.asScala.toSet)
   }
 }
