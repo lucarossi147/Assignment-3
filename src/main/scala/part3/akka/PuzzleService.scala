@@ -15,23 +15,21 @@ import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 object PuzzleService {
 
   trait PuzzleServiceCommand
-  final case object ClearTiles extends PuzzleServiceCommand
-  final case class AddTiles(tiles: Set[Tile]) extends PuzzleServiceCommand
   final case object SpawnPlayer extends PuzzleServiceCommand
   final case class GetTiles(replyTo: ActorRef[PlayerCommand]) extends PuzzleServiceCommand
   final case class SetTiles(tiles: Set[Tile]) extends PuzzleServiceCommand
-  final case class PaintPuzzle(tiles: Set[Tile]) extends PuzzleServiceCommand
+  final case object ClearTiles extends PuzzleServiceCommand
+  final case class AddTiles(tiles: Set[Tile]) extends PuzzleServiceCommand
 
   sealed trait InternalPuzzleServiceCommand extends PuzzleServiceCommand
   final case class InternalUpdateResponse(response: UpdateResponse[ORSet[Tile]]) extends InternalPuzzleServiceCommand
   final case class InternalGetResponse(replyTo: ActorRef[PlayerCommand], rsp: GetResponse[ORSet[Tile]]) extends InternalPuzzleServiceCommand
   final case class InternalSubscribeResponse(chg: SubscribeResponse[ORSet[Tile]]) extends InternalPuzzleServiceCommand
-  final case class InternalUpdate(asd: Replicator.Update[ORSet[Tile]]) extends InternalPuzzleServiceCommand
 
   def apply(): Behavior[PuzzleServiceCommand] = Behaviors.setup { context =>
 
     implicit val node: SelfUniqueAddress = DistributedData(context.system).selfUniqueAddress
-    val key = ORSetKey[Tile]("puzzleBoard")
+    val key = ORSetKey[Tile]("tiles")
     val cluster = Cluster(context.system)
     var player: ActorRef[PlayerCommand] = null
 
@@ -61,6 +59,7 @@ object PuzzleService {
           )
           Behaviors.same
 
+//      We are using a ORSet, Observed-remove set, so first we delete all tiles and then we add them again
         case SetTiles(tiles) =>
           context.log.debug("ENTERING SET TILES")
           context.log.debug(s"RECEIVED ${tiles.size.toString} TILES" )
@@ -78,12 +77,10 @@ object PuzzleService {
 
         case AddTiles(tiles) =>
           context.log.debug("ENTERING ADD TILES")
-          context.log.debug("Tiles Received "+ tiles)
           var myNewORSet = ORSet.empty[Tile]
           for (t <- tiles) {
             myNewORSet = myNewORSet.add(node, t)
           }
-          context.log.debug("Or Set size "+ myNewORSet.size.toString)
           replicator.askUpdate(
             Update(key, ORSet.empty[Tile], WriteLocal)(_.merge(myNewORSet)),
             InternalUpdateResponse.apply
@@ -102,7 +99,7 @@ object PuzzleService {
 
           case InternalGetResponse(replyTo, g @ GetSuccess(_)) =>
             context.log.debug("ENTERING INTERNAL GET -> SUCCESS RESPONSE")
-            context.log.info(g.dataValue.elements.toString())
+            context.log.debug(g.dataValue.elements.toString())
             replyTo ! Tiles(g.dataValue.elements)
             Behaviors.same
 
@@ -111,10 +108,9 @@ object PuzzleService {
             replyTo ! Failure
             Behaviors.same
 
-            //quando cambia mi mando un messaggio per aggiornare
+//            when a modify occurs send tiles to player
           case InternalSubscribeResponse(Replicator.Changed(_)) =>
             context.log.debug("ENTERING INTERNAL SUBSCRIBE RESPONSE")
-            //non e' detto che vada
             context.self ! GetTiles(player)
             Behaviors.same
         }

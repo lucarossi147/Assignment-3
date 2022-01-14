@@ -119,6 +119,4 @@ public class PuzzleBoard extends JFrame {
     public void addPropertyChangeListener(PropertyChangeListener pcl){
         support.addPropertyChangeListener(pcl);
     }
-
-    public List<ImageIcon> getTilesImages() { return this.imageTiles;}
 }

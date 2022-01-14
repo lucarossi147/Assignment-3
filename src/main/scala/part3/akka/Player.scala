@@ -28,7 +28,6 @@ object Player {
     puzzleService ! GetTiles(ctx.self)
 
     Behaviors.receiveMessage {
-
       case Failure =>
         Behaviors.same
 
@@ -37,8 +36,7 @@ object Player {
         Behaviors.same
 
       case Tiles(tiles) =>
-        ctx.log.info("I GOT THE TILES: ")
-        ctx.log.info(tiles.toString())
+        ctx.log.debug("I GOT THE TILES: " + tiles.toString())
         val javaTiles: ArrayBuffer[Tile] = ArrayBuffer.from(tiles)
         board.setTiles(javaTiles.asJava)
         board.rePaintPuzzle()
@@ -52,7 +50,7 @@ class MyObserver(puzzleService: ActorRef[PuzzleServiceCommand]) extends Property
   override def propertyChange(evt: PropertyChangeEvent): Unit = {
 //    println("tiles changed")
     val javaList = evt.getNewValue.asInstanceOf[java.util.List[Tile]]
-    //transform a java list to a scala list
+//    transform a java list to a scala list
     puzzleService ! SetTiles(javaList.asScala.toSet)
   }
 }
