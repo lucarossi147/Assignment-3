@@ -29,38 +29,35 @@ object Analyzer {
             unwantedWords: Set[String] = Set.empty,
            ): Behavior[AnalyzeCommand] = Behaviors.setup { context =>
     val numberOfPages = getNumberOfPages(path)
-    Behaviors.receive { (_, message) =>
-      message match {
-        case StartAnalysis =>
-          context.self ! Read(0)
+    Behaviors.receiveMessage {
+      case StartAnalysis =>
+        context.self ! Read(0)
+        Behaviors.same
+
+      case Read(index) =>
+        val p: Page = readPage(path, index).getOrElse(Page(""))
+        context.self ! GetWords(p, index)
+        Behaviors.same
+
+      case GetWords(page: Page, index: Int) =>
+        val words = page.getRelevantWords(unwantedWords)
+        context.self ! Analyze(words, index)
+        Behaviors.same
+
+      case Analyze(words: Seq[String], index: Int) =>
+        val rank = analyze(words)
+        replyTo ! UpdateRank(rank, words.size)
+        context.self ! AnalyzedUpTo(index)
+        Behaviors.same
+
+      case AnalyzedUpTo(upTo) =>
+        if (upTo == numberOfPages)
+          Behaviors.stopped
+        else {
+
+          context.self ! Read(upTo + 1)
           Behaviors.same
-
-        case Read(index) =>
-          val p: Page = readPage(path, index).getOrElse(Page(""))
-          context.self ! GetWords(p, index)
-          Behaviors.same
-
-        case GetWords(page: Page, index: Int) =>
-          val words = page.getRelevantWords(unwantedWords)
-          context.self ! Analyze(words, index)
-          Behaviors.same
-
-        case Analyze(words: Seq[String], index: Int) =>
-          val rank = analyze(words)
-          replyTo ! UpdateRank(rank, words.size)
-          context.self ! AnalyzedUpTo(index)
-          Behaviors.same
-
-        case AnalyzedUpTo(upTo) =>
-          if (upTo == numberOfPages)
-            Behaviors.stopped
-          else {
-
-            context.self ! Read(upTo + 1)
-            Behaviors.same
-          }
-      }
-
+        }
     }
   }
 
