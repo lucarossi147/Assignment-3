@@ -62,19 +62,4 @@ public class Server implements ServerRemote {
         }
     }
 
-/*    @Override
-    public void notifyEndGame() throws RemoteException {
-        System.out.println(clients.size());
-        System.out.println(clients);
-        for (Client cb: clients){
-            System.out.println("Notified");
-            cb.onMatchFinish();
-        }
-    }
-
-    @Override
-    public List<Client> getClients() throws RemoteException {
-        return clients;
-    }*/
-
 }

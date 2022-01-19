@@ -19,10 +19,6 @@ public interface ServerRemote extends Remote {
 
     void notifyClients() throws RemoteException;
 
-    //void notifyEndGame() throws RemoteException;
-
-    //List<Client> getClients() throws RemoteException;
-
     Boolean isFinished() throws RemoteException;
 
     void setFinished() throws RemoteException;

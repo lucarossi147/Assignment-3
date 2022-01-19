@@ -74,11 +74,7 @@ public class PuzzleBoard extends JFrame {
     }
 
     private void registerForCallback(ServerRemote remoteInstance) throws RemoteException {
-        //noinspection Convert2MethodRef
         Runnable r = (Runnable & Serializable) () -> updateBoard();
-
-        //noinspection Convert2MethodRef
-        //Runnable f = (Runnable & Serializable) () -> closeMatch();
 
         callbackReference = new ClientRemote(r);
         remoteInstance.registerClient(callbackReference);
@@ -110,8 +106,7 @@ public class PuzzleBoard extends JFrame {
             remoteInstance.unregisterClient(callbackReference);
             registry.unbind(Main.instanceName);
         } catch (RemoteException | NotBoundException e) {
-            //TODO potrebbe essere "normale" o accettabile
-            //System.err.println("Remote exception on object destroy");
+            System.err.println("Remote exception on object destroy");
         }
     }
 
@@ -208,8 +203,7 @@ public class PuzzleBoard extends JFrame {
     }
 
     private void closeMatch() {
-        //TODO rimane che se è il master a finire gli altri non si accorgono
-        //TODO si blocca JOptionPane.showMessageDialog(board, "Puzzle Completed!", "Congrats", JOptionPane.INFORMATION_MESSAGE);
+        JOptionPane.showMessageDialog(board, "Puzzle Completed!", "Congrats", JOptionPane.INFORMATION_MESSAGE);
         //System.out.println("Match finished");
         cleanRegistry();
         System.exit(0);
